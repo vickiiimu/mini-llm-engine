@@ -1,7 +1,6 @@
+import time
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-
-# for CPU
 
 model_id = "Qwen/Qwen2.5-0.5B"
 
@@ -11,16 +10,31 @@ model.eval()
 
 prompt = "The capital of France is"
 inputs = tokenizer(prompt, return_tensors="pt")
+generated_ids = inputs['input_ids']
 
-print(f"Input IDS: {inputs['input_ids']}")
-print(f"Input shape: {inputs['input_ids'].shape}")
+print(f"Input IDS: {generated_ids}")
+print(f"Input shape: {generated_ids.shape}")
+
+max_new_tokens = 10
 
 with torch.inference_mode():
-    outputs = model(**inputs, use_cache=False)
+    for step in range(1, max_new_tokens + 1):
+        seq_len = generated_ids.shape[1]
+        start = time.perf_counter()
 
-print(f"Logits shape: {outputs.logits.shape}")
+        outputs = model(generated_ids, use_cache=False)
 
-next_token_ids = outputs.logits[:, -1:].argmax(-1)
+        next_token_ids = outputs.logits[:, -1:].argmax(-1)
 
-print(f"Next token ID: {next_token_ids.item()}")
-print(f"Next token: {tokenizer.decode(next_token_ids.item())}")
+        t_elapsed = time.perf_counter() - start
+
+        generated_ids = torch.cat([generated_ids, next_token_ids], dim=-1)
+
+        output_text = tokenizer.decode(next_token_ids.item())
+
+        print(
+            f"Step: {step} | "
+            f"Input length: {seq_len} | "
+            f"Next token: {output_text} | "
+            f"Elpased time (ms): {t_elapsed * 1000}"    
+        )
