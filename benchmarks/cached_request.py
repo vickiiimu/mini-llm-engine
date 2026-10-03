@@ -44,4 +44,15 @@ with torch.inference_mode():
             f"Elapsed time (ms): {t_elapsed * 1000}"    
         )
 
+        if step <= 3:
+            for layer_idx in range(3): #first 3 attention layers
+                layer_cache = past_key_values.layers[layer_idx]
+
+                # (batch_size, number_of_kv_heads, cached_tokens, head_dimension)
+                print(
+                    f"Layer {layer_idx} | "
+                    f"K shape: {layer_cache.keys.shape} | "
+                    f"V shape: {layer_cache.values.shape}"
+                )
+
 print(tokenizer.decode(generated_ids[0], skip_special_tokens=True))
