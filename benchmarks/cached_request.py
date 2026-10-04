@@ -56,3 +56,41 @@ with torch.inference_mode():
                 )
 
 print(tokenizer.decode(generated_ids[0], skip_special_tokens=True))
+
+# calculate actual KV cache size
+cache_bytes = 0
+
+for layer_cache in past_key_values.layers:
+    k_bytes = layer_cache.keys.numel() * layer_cache.keys.element_size()
+    v_bytes = layer_cache.values.numel() * layer_cache.values.element_size()
+
+    cache_bytes += k_bytes + v_bytes
+
+print(
+    f"Cached tokens: {past_key_values.get_seq_length()} | "
+    f"KV cache size: {cache_bytes} B | "
+    f"KV cache size: {cache_bytes / 1024:.2f} KiB"
+)
+
+
+
+# calculate expected KV cache size
+num_layers = model.config.num_hidden_layers
+num_kv_heads = model.config.num_key_value_heads
+
+head_dim = model.config.hidden_size // model.config.num_attention_heads
+
+batch_size = generated_ids.shape[0]
+cached_tokens = past_key_values.get_seq_length()
+bytes_per_element = past_key_values.layers[0].keys.element_size()
+
+bytes_per_token = (
+    2 # K and V vector
+    * num_layers
+    * num_kv_heads
+    * head_dim
+    * bytes_per_element
+)
+
+expected_cache_bytes = batch_size * cached_tokens * bytes_per_token
+print(f"Expected cache size: {expected_cache_bytes} B | {expected_cache_bytes / 1024:.2f} KiB")
